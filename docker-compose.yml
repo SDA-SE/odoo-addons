@@ -1,0 +1,42 @@
+services:
+  odoo:
+    image: docker.io/bitnami/odoo:18
+    ports:
+      - '8069:8069'
+    volumes:
+      - 'odoo_data:/bitnami/odoo'
+      - './addons:/addons'
+    depends_on:
+      - postgresql-odoo
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - BITNAMI_DEBUG=true
+      - ALLOW_EMPTY_PASSWORD=yes
+      - ODOO_DATABASE_HOST=postgresql-odoo
+      - ODOO_DATABASE_PORT_NUMBER=5432
+      - ODOO_DATABASE_USER=bn_odoo
+      - ODOO_DATABASE_NAME=bitnami_odoo
+      - ODOO_ADDONS_DIR=/addons
+    networks:
+      - odoo-network
+
+  postgresql-odoo:
+    image: docker.io/bitnami/postgresql:latest
+    volumes:
+      - 'postgresql-odoo_data:/bitnami/postgresql'
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - POSTGRESQL_USERNAME=bn_odoo
+      - POSTGRESQL_DATABASE=bitnami_odoo
+    networks:
+      - odoo-network
+volumes:
+  postgresql-odoo_data:
+    driver: local
+  odoo_data:
+    driver: local
+
+networks:
+  odoo-network:
+    driver: bridge
