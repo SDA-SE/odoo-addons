@@ -1,0 +1,83 @@
+services:
+
+  init-addons:
+    image: alpine:3
+    command:
+      - ash
+      - -c
+      - |
+        echo "Initializing Odoo Addons ..."
+        mkdir -p /addons/name_splitter
+        cd /name_splitter
+        cp -r *.py /addons/name_splitter
+        cp -r models /addons/name_splitter
+        cp -r security /addons/name_splitter
+        cp -r views /addons/name_splitter
+        cp -r demo /addons/name_splitter
+        ls -la /addons/name_splitter
+        echo "Addons initialized successfully."
+    volumes:
+      - ./name_splitter:/name_splitter
+      - addons_data:/addons
+    networks:
+      - odoo-network
+
+  odoo:
+    image: docker.io/bitnami/odoo:18
+    restart: unless-stopped
+    ports:
+      - '8069:8069'
+    volumes:
+      - 'odoo_data:/bitnami/odoo'
+      - 'addons_data:/addons'
+    depends_on:
+      init-addons:
+        condition: service_completed_successfully
+      postgresql-odoo:
+        condition: service_healthy
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - BITNAMI_DEBUG=true
+      - ALLOW_EMPTY_PASSWORD=yes
+      - ODOO_DATABASE_HOST=postgresql-odoo
+      - ODOO_DATABASE_PORT_NUMBER=5432
+      - ODOO_DATABASE_USER=bn_odoo
+      - ODOO_DATABASE_NAME=bitnami_odoo
+      - ODOO_ADDONS_DIR=/addons
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8069/web/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - odoo-network
+
+  postgresql-odoo:
+    image: docker.io/bitnami/postgresql:latest
+    restart: unless-stopped
+    volumes:
+      - 'postgresql-odoo_data:/bitnami/postgresql'
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - POSTGRESQL_USERNAME=bn_odoo
+      - POSTGRESQL_DATABASE=bitnami_odoo
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U bn_odoo -d bitnami_odoo" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - odoo-network
+volumes:
+  postgresql-odoo_data:
+    driver: local
+  odoo_data:
+    driver: local
+  addons_data:
+    driver: local
+
+networks:
+  odoo-network:
+    driver: bridge
